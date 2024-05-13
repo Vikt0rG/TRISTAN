@@ -1,3 +1,6 @@
 # Ignore local data files
 data/
 DataR_CH7@DT5725SB_13964_run_25_04_2024_1.BIN
+
+#  Ignore pychache
+__pycache__/
