@@ -52,7 +52,7 @@ for idx in tqdm(range(total_iterations), desc='Plotting waveforms', unit="%", un
     i = idx // num_cols
     j = idx % num_cols
     if idx < 7:
-        data = readFile(files[idx])
+        data = readFile(sorted_files[idx])
         waveforms = data['wave']
         for val, color_index in zip(np.arange(1, 12e4, 2e4), np.arange(num_colors)):
             val = int(val)
@@ -82,7 +82,7 @@ for idx in tqdm(range(total_iterations), desc='Plotting waveforms', unit="%", un
             ax[i, j].legend(loc = 'center')
             ax[i, j].axis('off')
 
-#  fig.savefig('Plots/Waveform_run1.png', dpi=300)
+fig.savefig('Plots/Waveform_run1.png', dpi=300)
 
 # =======================================================================================================
 # Baseline correction & Waveform deconvolution
@@ -104,7 +104,7 @@ for idx1 in tqdm(range(total_iterations), desc='Plotting baseline corrected wave
     i = idx1 // num_cols
     j = idx1 % num_cols
     if idx1 < 7:
-        data = readFile(files[idx1])
+        data = readFile(sorted_files[idx1])
         waveforms = data['wave']
         # -----------------------------------------------------------------------------------------------
         offset = np.mean(waveforms[:, :500], axis=1)
@@ -164,6 +164,6 @@ for idx1 in tqdm(range(total_iterations), desc='Plotting baseline corrected wave
             ax[i, j].legend(loc = 'center', fontsize=10)
             ax[i, j].axis('off')
 
-#  fig.savefig('Plots/Waveform_corrected.png', dpi=300)
+fig.savefig('Plots/Waveform_corrected.png', dpi=300)
 
 plt.show()
