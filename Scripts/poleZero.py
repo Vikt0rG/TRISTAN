@@ -166,13 +166,99 @@ ax.set_xlabel('Energy [a.u]')
 ax.set_ylabel('Event counts')
 
 ax.legend()
-fig.savefig('Plots/E_distribution_fit.png', dpi=300)
-plt.show()
-# -------------------------------------------------------------------------------------------------------
+# fig.savefig('Plots/E_distribution_fit.png', dpi=300)
+
+# =======================================================================================================
+# Plotting energy differences histogram: All Channels; Calibrated
+# =======================================================================================================
 
 E_alpha = 5.90  # keV
 E_beta = 6.49   # keV
 # Linear regression to relate measured and true energies
 slope, intercept, _, _, _ = linregress([mean_alpha_lsb, mean_beta_lsb], [E_alpha, E_beta])
 energy_kev = slope * energy + intercept
-print(energy_kev)
+# -------------------------------------------------------------------------------------------------------
+# For resolution:
+initial_guesses_alpha = {'alpha_center': 6, 'alpha_amplitude': 3500, 'alpha_sigma': 0.2}
+res = np.ones_like(sorted_files)
+# For combined counts plot:
+combined_counts = np.zeros(263)
+
+# -------------------------------------------------------------------------------------------------------
+plt.rcParams.update({'font.size': 12})
+fig, ax = plt.subplots(figsize=(8,5), constrained_layout=True)
+
+for idx1, filename in enumerate(tqdm(sorted_files, desc='Plotting calibrated histograms', unit="%", unit_scale=True)):
+    data = readFile(filename)
+    energy = slope * data['energy'] + intercept
+    # ---------------------------------------------------------------------------------------------------
+    counts_alpha, bin_edges_alpha, _ = ax.hist(energy, bins=263, range=(5, 7), 
+                                               color=viridis(norm(idx1)), alpha=0.7, label=f'Channel No. {idx1}')
+    bin_centers_alpha = (bin_edges_alpha[:-1] + bin_edges_alpha[1:]) / 2
+    result_alpha = gmodel_alpha.fit(counts_alpha, x=bin_centers_alpha, method='leastsq', **initial_guesses_alpha)
+    alpha_center = result_alpha.params['alpha_center'].value
+    alpha_sigma = result_alpha.params['alpha_sigma'].value
+    res[idx1] = alpha_sigma
+    combined_counts += counts_alpha
+# -------------------------------------------------------------------------------------------------------
+ax.set_xlim(5, 7)
+ax.set_ylim(0, 4000)
+ax.tick_params(direction='in', which='both', top=True, right=True, width=1, pad=5)
+ax.xaxis.set_major_locator(MultipleLocator(0.25))
+ax.xaxis.set_minor_locator(MultipleLocator(0.05))
+ax.yaxis.set_major_locator(MultipleLocator(500))
+ax.yaxis.set_minor_locator(MultipleLocator(100))
+ax.tick_params(which='major', length=5)
+ax.tick_params(which='minor', length=2)
+# -------------------------------------------------------------------------------------------------------
+ax.set_xlabel('Energy [keV]')
+ax.set_ylabel('Event counts')
+ax.legend(loc='upper left')    
+
+# fig.savefig('Plots/E_distribution_mult_cal.png', dpi=300)
+
+# =======================================================================================================
+# Plotting resolutions: All Channels
+# =======================================================================================================
+
+fig, scatter_ax = plt.subplots(figsize=(8, 5), constrained_layout=True)
+
+channels = np.arange(len(sorted_files))
+res = np.array(res, dtype=float)
+res = np.round(res, decimals=4)
+scatter_ax.scatter(channels, 2.35*res, c=viridis(norm(channels)), alpha=1, marker='x')
+# -------------------------------------------------------------------------------------------------------
+scatter_ax.tick_params(direction='in', which='both', top=True, right=True, width=1, pad=5)
+scatter_ax.xaxis.set_major_locator(MultipleLocator(1))
+scatter_ax.yaxis.set_major_locator(MultipleLocator(0.002))
+scatter_ax.yaxis.set_minor_locator(MultipleLocator(0.0005))
+# -------------------------------------------------------------------------------------------------------
+scatter_ax.grid(True, color='grey')
+scatter_ax.set_xlabel('Channel Number')
+scatter_ax.set_ylabel(r'Resolution [FWHM $\cdot$ keV]')
+
+# fig.savefig('Plots/resolution.png', dpi=300)
+
+# =======================================================================================================
+# Plotting energy histogra: All Channels combined; Calibrated
+# =======================================================================================================
+
+fig, ax = plt.subplots(figsize=(8, 5), constrained_layout=True)
+bin_edges_combined = bin_edges_alpha 
+
+ax.hist(bin_centers_alpha, bins=bin_edges_combined, weights=combined_counts, 
+        color=plt.get_cmap('inferno')(0.15), alpha=0.7, label='Combined Spectrum')
+# -------------------------------------------------------------------------------------------------------
+ax.tick_params(direction='in', which='both', top=True, right=True, width=1, pad=5)
+ax.xaxis.set_major_locator(MultipleLocator(0.25))
+ax.xaxis.set_minor_locator(MultipleLocator(0.05))
+ax.yaxis.set_major_locator(MultipleLocator(2500))
+ax.yaxis.set_minor_locator(MultipleLocator(500))
+# -------------------------------------------------------------------------------------------------------
+ax.set_xlim(5, 7)
+ax.set_xlabel('Energy [keV]')
+ax.set_ylabel('Event Counts')
+ax.legend()
+
+fig.savefig('Plots/E_distribution_combined.png', dpi=300)
+plt.show()
