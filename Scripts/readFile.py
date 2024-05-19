@@ -21,3 +21,18 @@ def readFile(file):
         dfile.seek(2)
         data = np.fromfile(dfile, dtype=datatype)
     return data
+
+# For reading noise BIN files:
+def readFileShortened(filename):
+    dfile = open(filename , "rb")
+    dfile.seek(21)  # Position where n_samples is saved in the file
+    n_samples = struct.unpack('i', dfile.read(4))[0]
+    datatype = np.dtype([
+        ('board', np.uint16),
+        ('channel', np.uint16),
+        ('timestamp', np.uint64),
+        ('energy', np.uint16),
+        ('flags', np.uint32)])
+    dfile.seek(2)
+    data = np.fromfile(dfile, dtype=datatype)
+    return data
