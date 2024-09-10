@@ -10,14 +10,30 @@ from scipy.stats import linregress
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
-from matplotlib.ticker import MultipleLocator
+from matplotlib.ticker import MultipleLocator, FuncFormatter
 from matplotlib import rc
 from matplotlib import cm
 
 from readFile import readFile
 
-rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
-rc('text', usetex=True)
+plt.rcParams.update({
+    'text.usetex': True,
+    'font.family': 'serif',
+    'font.serif': 'Palatino',
+    'text.latex.preamble': r'\usepackage{mathpazo}',
+    'font.size': 12
+})
+
+def plot_outline(h, bins, ax=None, **plot_kwargs):
+    '''Provide explicit axes to choose where to plot it, otherwise the current axes will be used'''
+    if ax is None:
+        ax = plt.gca()
+    bin_width = bins[1] - bins[0]
+    bins_extended = np.concatenate(([bins[0] - bin_width], bins, [bins[-1] + bin_width]))
+    h_extended = np.concatenate(([0], h, [0]))
+
+    ax.plot(bins_extended[:-1], h_extended, drawstyle='steps-post', **plot_kwargs)
+    return ax
 
 # =======================================================================================================
 # Get data from directories
@@ -37,7 +53,7 @@ alpha = np.exp(-1 / (tau * fs))
 a_coeff = [1,-1] # denominator coefficient
 b_coeff = [1, -alpha] # numerator coefficient
 # -------------------------------------------------------------------------------------------------------
-
+"""
 data = readFile(sorted_files[0])  #  Take the zeroth channel
 waveforms = data['wave']
 offset = np.mean(waveforms[:, :500], axis=1)
@@ -108,7 +124,7 @@ for idx1, filename in enumerate(tqdm(sorted_files, desc='Plotting histograms', u
 
 ax.legend(loc='upper left')    
 fig.savefig('Plots/E_distribution_mult.png', dpi=300)
-
+"""
 # =======================================================================================================
 # Fitting the data
 # =======================================================================================================
@@ -167,7 +183,6 @@ ax.set_ylabel('Event counts')
 
 ax.legend()
 # fig.savefig('Plots/E_distribution_fit.png', dpi=300)
-
 # =======================================================================================================
 # Plotting energy differences histogram: All Channels; Calibrated
 # =======================================================================================================
@@ -188,6 +203,7 @@ combined_counts = np.zeros(263)
 plt.rcParams.update({'font.size': 12})
 fig, ax = plt.subplots(figsize=(8,5), constrained_layout=True)
 
+energy_list = []
 for idx1, filename in enumerate(tqdm(sorted_files, desc='Plotting calibrated histograms', unit="%", unit_scale=True)):
     data = readFile(filename)
     energy = slope * data['energy'] + intercept
@@ -199,7 +215,8 @@ for idx1, filename in enumerate(tqdm(sorted_files, desc='Plotting calibrated his
     alpha_center = result_alpha.params['alpha_center'].value
     alpha_sigma = result_alpha.params['alpha_sigma'].value
     res[idx1] = alpha_sigma
-    combined_counts += counts_alpha
+
+    energy_list.append(energy)
 # -------------------------------------------------------------------------------------------------------
 ax.set_xlim(5, 7)
 ax.set_ylim(0, 4000)
@@ -243,22 +260,44 @@ scatter_ax.set_ylabel(r'Resolution [FWHM $\cdot$ keV]')
 # Plotting energy histogra: All Channels combined; Calibrated
 # =======================================================================================================
 
-fig, ax = plt.subplots(figsize=(8, 5), constrained_layout=True)
-bin_edges_combined = bin_edges_alpha 
+fig, ax = plt.subplots(figsize=(7, 5), constrained_layout=True)
 
-ax.hist(bin_centers_alpha, bins=bin_edges_combined, weights=combined_counts, 
-        color=plt.get_cmap('inferno')(0.15), alpha=0.7, label='Combined Spectrum')
-# -------------------------------------------------------------------------------------------------------
-ax.tick_params(direction='in', which='both', top=True, right=True, width=1, pad=5)
-ax.xaxis.set_major_locator(MultipleLocator(0.25))
-ax.xaxis.set_minor_locator(MultipleLocator(0.05))
-ax.yaxis.set_major_locator(MultipleLocator(2500))
-ax.yaxis.set_minor_locator(MultipleLocator(500))
-# -------------------------------------------------------------------------------------------------------
+hist, edges, patches = ax.hist(energy_list,
+                            bins = 263,
+                            range = (5,7),
+                            stacked=True, 
+                            color=[plt.get_cmap('viridis')(i / len(energy_list)) for i in range(len(energy_list))], 
+                            alpha=0.95, label=[f'Channel No. {idx}' for idx in range(len(energy_list))])
+
+for histo in hist:
+    plot_outline(histo, bins=edges, ax=ax, color='black', linewidth=1.)
+
 ax.set_xlim(5, 7)
 ax.set_xlabel('Energy [keV]')
 ax.set_ylabel('Event Counts')
-ax.legend()
 
-fig.savefig('Plots/E_distribution_combined.png', dpi=300)
+ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f'{y/1000:.1f}'))
+ax.tick_params(direction='in', which='major', length=7, width=1, top=True, right=True, pad=5)
+ax.tick_params(direction='in', which='minor', length=4, width=0.5, top=True, right=True, pad=5)
+major_ticks = ax.xaxis.get_majorticklocs()
+major_tick_interval = major_ticks[1] - major_ticks[0]
+ax.xaxis.set_minor_locator(MultipleLocator(major_tick_interval / 5))
+
+major_ticks = ax.yaxis.get_majorticklocs()
+major_tick_interval = major_ticks[1] - major_ticks[0]
+ax.yaxis.set_minor_locator(MultipleLocator(major_tick_interval / 5))
+
+legend = ax.legend(
+            loc=(0.65, 0.55),
+            frameon=True,
+            labelspacing=0.3,
+            borderpad=0.3
+        )
+for handle in legend.legend_handles:
+    handle.set_edgecolor('black')
+
+plt.text(0, 1.02, r'$\times 10^3$', transform=ax.transAxes, fontsize=12)
+plt.subplots_adjust(top=0.95, right=0.95, hspace=0.05)
 plt.show()
+
+fig.savefig('E_distribution_combined.png', dpi=300)
