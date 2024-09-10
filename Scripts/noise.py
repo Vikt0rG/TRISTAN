@@ -26,7 +26,7 @@ files = []
 for filename in os.listdir(baseDir):
     files.append(os.path.join(baseDir, filename))
 
-sorted_files = sorted(files, key=lambda x: int(x.split('_run_25_04_2024')[-1].split('_')[1][0]))
+sorted_files = sorted(files, key=lambda x: int(x.split('_run_25_04_2024_')[-1].split('_')[0][0]))
 trap_times = np.array([0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0]) # in microsecons
 res = np.ones_like(trap_times)
 
@@ -68,16 +68,21 @@ fig, ax = plt.subplots(figsize=(8, 5), constrained_layout=True)
 
 # -------------------------------------------------------------------------------------------------------
 gmodel_alpha = GaussianModel(prefix='alpha_')
-initial_guesses_alpha = {'alpha_center': 6, 'alpha_amplitude': 3500, 'alpha_sigma': 0.2}
 
-for idx, (trap_rise_time, filename) in enumerate(tqdm(zip(trap_times, sorted_files), desc='Analyzing rise times', total=len(trap_times))):
+ranges = [(2.6, 3.2), (2.4, 2.9), (2.8, 3.2), (3.7, 4.1), (5.8, 6.1), (11.9, 12.4), (22.35, 22.7)]
+for idx, (trap_rise_time, filename, range) in enumerate(tqdm(zip(trap_times, sorted_files, ranges), desc='Analyzing rise times', total=len(trap_times))):
+    initial_guesses_alpha = {'alpha_center': np.mean(range), 'alpha_amplitude': 2000, 'alpha_sigma': 0.1}
+
     data = readFileShortened(filename)  # Replace with your actual file reading function
     energy = slope * data['energy'] + intercept
-    
-    counts_alpha, bin_edges_alpha = np.histogram(energy, bins=263, range=(5, 7))
+
+    counts_alpha, bin_edges_alpha = np.histogram(energy, bins=200, range = range)
     bin_centers_alpha = (bin_edges_alpha[:-1] + bin_edges_alpha[1:]) / 2
     result_alpha = gmodel_alpha.fit(counts_alpha, x=bin_centers_alpha, method='leastsq', **initial_guesses_alpha)
-    
+
+    # plt.bar(bin_centers_alpha, counts_alpha, width=(bin_edges_alpha[1] - bin_edges_alpha[0]), color='blue', alpha=0.7)
+    # plt.show()
+
     alpha_sigma = result_alpha.params['alpha_sigma'].value
     res[idx] = alpha_sigma
 # -------------------------------------------------------------------------------------------------------
@@ -86,10 +91,14 @@ ax.set_xlabel(r'Trap. Rise Time [$\mu$s]')
 ax.set_ylabel(r'Energy Resolution [FWHM $\cdot$ keV]')
 # -------------------------------------------------------------------------------------------------------
 ax.tick_params(direction='in', which='both', top=True, right=True, width=1, pad=5)
-ax.xaxis.set_major_locator(MultipleLocator(1))
-ax.xaxis.set_minor_locator(MultipleLocator(2))
-ax.yaxis.set_major_locator(MultipleLocator(0.1))
-ax.yaxis.set_minor_locator(MultipleLocator(0.02))
+
+major_ticks = ax.xaxis.get_majorticklocs()
+major_tick_interval = major_ticks[1] - major_ticks[0]
+ax.xaxis.set_minor_locator(MultipleLocator(major_tick_interval / 5))
+
+major_ticks = ax.yaxis.get_majorticklocs()
+major_tick_interval = major_ticks[1] - major_ticks[0]
+ax.yaxis.set_minor_locator(MultipleLocator(major_tick_interval / 5))
 # -------------------------------------------------------------------------------------------------------
 ax.grid(True, color='grey', lw=1, alpha=0.7)
 
